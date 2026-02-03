@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>نظام الصادر والأرشيف - وزارة العدل</title>
+    <style>
+        :root { --primary-dark: #002b4d; --print-btn: #1e8449; --delete-btn: #c0392b; --bg-color: #2c3e50; --export-btn: #8e44ad; --import-btn: #f39c12; }
+        body { font-family: 'Sakkal Majalla', 'Arial', serif; background-color: var(--bg-color); padding: 20px; margin: 0; color: #000; }
+        
+        .dashboard { display: flex; gap: 20px; max-width: 1250px; margin: 0 auto; align-items: flex-start; padding-bottom: 60px; }
+        .panel { background: #fdfdfd; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border-top: 6px solid var(--primary-dark); }
+        .right-panel { flex: 2; } 
+        .left-panel { flex: 1.5; position: sticky; top: 20px; }
+
+        .footer-credits { text-align: center; color: #bdc3c7; padding: 15px; font-family: Arial; font-size: 14px; letter-spacing: 1px; margin-top: 20px; }
+
+        /* الورقة A4 */
+        .paper { 
+            width: 210mm; min-height: 265mm; padding: 20mm 20mm; margin: 40px auto; 
+            background-color: white; box-shadow: 0 0 25px rgba(0,0,0,0.7); 
+            display: none; box-sizing: border-box; position: relative; overflow: hidden;
+        }
+
+        /* العلامة المائية */
+        .watermark-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+            background-image: url('NEEDS/logo.png'); 
+            background-repeat: repeat-y;
+            background-position: center top;
+            background-size: 1300px 265mm; 
+            opacity: 0.18;
+        }
+
+        .letter-content { position: relative; z-index: 5; display: flex; flex-direction: column; }
+        .header-top { display: flex; justify-content: space-between; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 35px; }
+        .ministry-title { font-size: 38px; font-weight: 900; }
+        .meta-box { font-size: 20px; text-align: left; font-weight: 900; font-family: Arial; line-height: 1.3; }
+        
+        .subject-line { text-align: center; font-size: 30px; font-weight: 900; margin: 30px 0; border: none; }
+        .letter-body { font-size: 24px; line-height: 1.8; text-align: justify; white-space: pre-wrap; margin-bottom: 40px; font-weight: bold; }
+        
+        .signature-section { text-align: center; width: 300px; margin-right: auto; margin-left: 0; margin-top: 50px; }
+        
+        /* تعديل الختم ليصبح أزرق رسمي */
+        .official-seal-box { 
+            width: 160px; height: 160px; margin: 10px auto; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        .official-seal-box img { 
+            max-width: 100%; max-height: 100%; object-fit: contain; 
+            /* الفلتر السحري لتحويل أي لون إلى الأزرق الرسمي */
+            filter: brightness(0) saturate(100%) invert(11%) sepia(85%) saturate(5451%) hue-rotate(204deg) brightness(90%) contrast(105%);
+            opacity: 0.9;
+        }
+
+        /* تنسيقات الواجهة */
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .full { grid-column: span 2; }
+        label { font-weight: bold; font-size: 14px; color: var(--primary-dark); display: block; margin-bottom: 4px; }
+        input, textarea, select { width: 100%; padding: 8px; border: 2px solid #bdc3c7; border-radius: 5px; font-size: 15px; font-weight: bold; box-sizing: border-box;}
+
+        .btn-gen { background: var(--primary-dark); color: white; padding: 12px; border: none; width: 100%; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; border-radius: 5px; }
+        .btn-print { background: var(--print-btn); color: white; padding: 12px; border: none; width: 100%; cursor: pointer; font-size: 18px; font-weight: bold; margin-top: 10px; border-radius: 5px; display: none; }
+        
+        .archive-tools { display: flex; gap: 5px; margin-bottom: 10px; }
+        .btn-tool { flex: 1; padding: 8px; border: none; border-radius: 5px; color: white; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-export { background: var(--export-btn); }
+        .btn-import { background: var(--import-btn); }
+
+        .archive-table { width: 100%; border-collapse: collapse; background: white; }
+        .archive-table th, .archive-table td { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 13px; }
+        .archive-table th { background: var(--primary-dark); color: white; }
+        .search-box { width: 100%; padding: 10px; margin-bottom: 10px; border: 2px solid var(--primary-dark); border-radius: 5px; font-size: 15px; }
+
+        @media print {
+            .dashboard, .footer-credits { display: none !important; }
+            body { background: none; padding: 0; }
+            .paper { display: block !important; box-shadow: none; width: 100%; margin: 0; border: none; padding: 20mm; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            @page { size: A4 portrait; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="panel right-panel">
+        <h2 style="margin-top: 0; color: var(--primary-dark); font-weight: 900; border-bottom: 2px solid #eee; padding-bottom: 10px;">نظام الصادر - وزارة العدل</h2>
+        <div class="input-group">
+            <div><label>رقم المعاملة:</label><input type="text" id="in_num" placeholder="رقم"></div>
+            <div>
+                <label>كود التوجيه:</label>
+                <select id="in_code">
+                    <option value="01">01 - المحكمة المدنية</option>
+                    <option value="02">02 - المحكمة الجزائية</option>
+                    <option value="03">03 - المحكمة العسكرية</option>
+                </select>
+            </div>
+            <div class="full"><label>التاريخ:</label><input type="text" id="in_date"></div>
+            <div class="full">
+                <label>المُرسِل (الصفة):</label>
+                <select id="in_sender_title">
+                    <option value="معالي وزير العدل">معالي وزير العدل</option>
+                    <option value="نائب وزير العدل">نائب وزير العدل</option>
+                    <option value="كاتب العدل">كاتب العدل</option>
+                    <option value="فضيلة القاضي">فضيلة القاضي</option>
+                </select>
+            </div>
+            <div class="full"><label>اسم المُرسِل:</label><input type="text" id="in_sender_name"></div>
+            <div class="full"><label>المستلم (اختياري):</label><input type="text" id="in_receiver"></div>
+            <div class="full"><label>الموضوع:</label><input type="text" id="in_subject"></div>
+            <div class="full"><label>نص الخطاب:</label><textarea id="in_text" rows="10"></textarea></div>
+        </div>
+        <button class="btn-gen" onclick="generateAndSave()">حفظ وتوليد</button>
+        <button id="main-print-btn" class="btn-print" onclick="window.print()">طباعة</button>
+        <div class="footer-credits">by : FA - D7</div>
+    </div>
+
+    <div class="panel left-panel">
+        <div style="overflow: hidden; border-bottom: 2px solid #eee; margin-bottom: 10px;">
+            <button class="btn-clear-all" onclick="clearFullArchive()">مسح الكل</button>
+            <h2 style="margin: 0; color: var(--primary-dark); font-weight: 900; text-align: right;">الأرشيف</h2>
+        </div>
+        <div class="archive-tools">
+            <button class="btn-tool btn-export" onclick="exportArchive()">تصدير الأرشيف</button>
+            <button class="btn-tool btn-import" onclick="document.getElementById('importFile').click()">استيراد ملف</button>
+            <input type="file" id="importFile" style="display:none" accept=".json" onchange="importArchive(this)">
+        </div>
+        <input type="text" id="search" class="search-box" placeholder="بحث...">
+        <div style="max-height: 500px; overflow-y: auto;">
+            <table class="archive-table">
+                <thead><tr><th>الرقم</th><th>المستلم</th><th>إجراء</th></tr></thead>
+                <tbody id="archive-body"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="letter-paper" class="paper">
+    <div class="watermark-layer"></div>
+    <div class="letter-content">
+        <div class="header-top">
+            <div style="width: 150px;"></div>
+            <div class="ministry-title">وزارة العدل</div>
+            <div class="meta-box">التاريخ: <span id="out_date"></span><br>الرقم : <span id="out_id"></span></div>
+        </div>
+        <div id="out_to" style="font-size: 26px; font-weight: 900; margin-bottom: 15px;"></div>
+        <p style="font-size: 24px; font-weight: bold;">السلام عليكم ورحمة الله وبركاته،، وبعد:</p>
+        <div class="subject-line" id="out_subject"></div>
+        <div id="out_body" class="letter-body"></div>
+        <p style="font-size: 23px; font-weight: bold;">وتفضلوا بقبول فائق الاحترام والتقدير،،</p>
+        <div class="signature-section">
+            <strong id="out_sender_title" style="font-size: 26px;"></strong><br>
+            <span id="out_sender_name" style="font-size: 24px; font-weight: bold;"></span><br>
+            <span style="font-weight: 900; font-size: 18px;">الختم الرسمي</span><br>
+            <div class="official-seal-box">
+                <img src="NEEDS/seal.png" id="sealImg" onerror="this.style.visibility='hidden';">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let archive = JSON.parse(localStorage.getItem('moj_archive')) || [];
+    window.onload = function() {
+        const today = new Date();
+        document.getElementById('in_date').value = (today.getMonth() + 1) + '/' + today.getDate() + '/' + today.getFullYear();
+        renderArchive();
+    };
+
+    function generateAndSave() {
+        const doc = {
+            uniqueId: Date.now(),
+            id: document.getElementById('in_num').value + " / " + document.getElementById('in_code').value,
+            date: document.getElementById('in_date').value,
+            sender_title: document.getElementById('in_sender_title').value,
+            sender_name: document.getElementById('in_sender_name').value,
+            receiver: document.getElementById('in_receiver').value || " ",
+            subject: document.getElementById('in_subject').value,
+            text: document.getElementById('in_text').value
+        };
+        if(!document.getElementById('in_num').value) { alert("ادخل الرقم"); return; }
+        archive.push(doc);
+        localStorage.setItem('moj_archive', JSON.stringify(archive));
+        displayLetter(doc);
+        renderArchive();
+    }
+
+    function displayLetter(doc) {
+        document.getElementById('out_date').innerText = doc.date;
+        document.getElementById('out_id').innerText = doc.id;
+        document.getElementById('out_to').innerText = doc.receiver;
+        document.getElementById('out_subject').innerText = "الموضوع: " + doc.subject;
+        document.getElementById('out_body').innerText = doc.text;
+        document.getElementById('out_sender_title').innerText = doc.sender_title;
+        document.getElementById('out_sender_name').innerText = doc.sender_name;
+        document.getElementById('letter-paper').style.display = 'block';
+        document.getElementById('main-print-btn').style.display = 'block';
+        window.scrollTo({ top: document.getElementById('letter-paper').offsetTop, behavior: 'smooth' });
+    }
+
+    function renderArchive() {
+        const body = document.getElementById('archive-body');
+        body.innerHTML = archive.slice().reverse().map((item) => `
+            <tr>
+                <td>${item.id}</td>
+                <td style="text-align:right">${item.receiver}</td>
+                <td class="actions-cell">
+                    <button class="btn-view" onclick='loadFromArchiveByUID(${item.uniqueId})'>فتح</button>
+                    <button class="btn-del" onclick="deleteEntry(${item.uniqueId})">حذف</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function loadFromArchiveByUID(uid) {
+        const doc = archive.find(i => i.uniqueId === uid);
+        if(doc) displayLetter(doc);
+    }
+
+    function deleteEntry(uid) {
+        if(confirm("حذف؟")) {
+            archive = archive.filter(i => i.uniqueId !== uid);
+            localStorage.setItem('moj_archive', JSON.stringify(archive));
+            renderArchive();
+        }
+    }
+
+    function clearFullArchive() {
+        if(confirm("مسح الأرشيف؟")) {
+            archive = [];
+            localStorage.setItem('moj_archive', JSON.stringify(archive));
+            renderArchive();
+        }
+    }
+
+    function exportArchive() {
+        if (archive.length === 0) return;
+        const dataStr = JSON.stringify(archive);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const link = document.createElement('a');
+        link.setAttribute('href', dataUri);
+        link.setAttribute('download', 'archive.json');
+        link.click();
+    }
+
+    function importArchive(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                archive = [...archive, ...imported];
+                localStorage.setItem('moj_archive', JSON.stringify(archive));
+                renderArchive();
+                alert("تم الدمج");
+            } catch (err) { alert("خطأ"); }
+        };
+        reader.readAsText(file);
+    }
+</script>
+</body>
+</html>
